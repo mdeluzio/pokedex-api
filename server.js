@@ -7,7 +7,8 @@ const helmet = require('helmet');
 
 const app = express();
 
-app.use(morgan('dev'));
+const morganSetting = process.env.NODE_ENV === 'production' ? 'tiny' : 'dev';
+app.use(morgan(morganSetting));
 app.use(helmet());
 app.use(cors());
 
@@ -18,8 +19,6 @@ app.use(function validateBearerToken(req, res, next) {
     if(!authToken || authToken.split(' ')[1] !== apiToken) {
         return res.status(401).json({error: 'Unauthorized request'})
     }
-
-    console.log('Validate bearer token middleware');
     next()
 });
 
@@ -39,14 +38,11 @@ function handleGetPokemon(req, res) {
     }
 
     if(type) {
-        //Make all valid types lower case.
         const lowerCaseValidTypes = validTypes.join(' ').toLowerCase().split(' ');
-        //Make user type input lower case.
         const lowerCaseUserType = type.toLowerCase()
-        //Check to see if the user type input matches one of the valid inputs. Send a 400 status if no matches.
+      
         if(!lowerCaseValidTypes.includes(lowerCaseUserType)) {
-            return res.status(400).send(`type must be one of 'Bug', 'Dark', 'Dragon', 'Electric', 'Fairy', 'Fighting', 'Fire', 'Flying', 
-            'Ghost', 'Grass', 'Ground', 'Ice', 'Normal', 'Poison', 'Psychic', 'Rock', 'Steel' or 'Water'`)
+            return res.status(400).send(`type must be one of ${validTypes.join(' ')}`)
         }
     }
 
@@ -70,8 +66,17 @@ function handleGetPokemon(req, res) {
 
 app.get('/pokemon', handleGetPokemon);
 
-const PORT = 8000;
+app.use((error, req, res, next) => {
+    let response
+    if (process.env.NODE_ENV === 'production') {
+      response = { error: { message: 'server error' }}
+    } else {
+      response = { error }
+    }
+    res.status(500).json(response)
+})
+
+const PORT = process.env.PORT || 8000;
 
 app.listen(PORT, () => {
-    console.log(`Server listening at http://localhost:${PORT}`)
 })
